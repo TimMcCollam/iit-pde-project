@@ -13,6 +13,7 @@ Nstart = 1;
 Nend = 100;
 
 condPlotK = zeros(1, Nend - Nstart);
+condPlotKTilda = zeros(1, Nend - Nstart);
 condPlotL = zeros(1, Nend - Nstart);
 condPlotLTilda = zeros(1, Nend - Nstart);
 condPlotV = zeros(1, Nend - Nstart);
@@ -24,17 +25,18 @@ for N = Nstart : 1 : Nend
     %Kernel matrix
     KMatrix = K(temp', temp);
     
-    %KMatrixTilda = [K(temp', temp) ones(N, 1) samplePoints';
-    %                K(0, samplePoints) 1 0;
-    %                K(1, samplePoints) 1 1;]
+    KMatrixTilda = [K(temp', temp) ones(N, 1) samplePoints';
+                    K(0, samplePoints) 1 0;
+                    K(1, samplePoints) 1 1;];
 
     %For this example, L = 2nd derivative
     LMatrix = D2K(temp', temp);
     LMatrixTilda = [D2K(temp', temp) zeros(N, 2);
                K(0, samplePoints) 1 0;
                K(1, samplePoints) 1 1];
-    cond(KMatrix)
+    cond(KMatrix);
     condPlotK(N-Nstart+1) = cond(KMatrix);
+    condPlotKTilda(N-Nstart+1) = cond(KMatrixTilda);
     condPlotL(N-Nstart+1) = cond(LMatrix);
     condPlotLTilda(N-Nstart+1) = cond(LMatrixTilda);
     
@@ -49,14 +51,15 @@ for N = Nstart : 1 : Nend
 
 end
 
-    plot(Nstart:1:Nend, log(condPlotK), 'b-')
-    plot(Nstart:1:Nend, log(condPlotL), 'g-')
-    plot(Nstart:1:Nend, log(condPlotLTilda), 'm-')
-    plot(Nstart:1:Nend, log(condPlotV), 'r-')
-    plot(Nstart:1:Nend, log(condPlotP), 'c-')
+    plot(Nstart:1:Nend, log(condPlotK), ':b')
+    plot(Nstart:1:Nend, log(condPlotKTilda), 'b')
+    plot(Nstart:1:Nend, log(condPlotL), ':g')
+    plot(Nstart:1:Nend, log(condPlotLTilda), 'g')
+    plot(Nstart:1:Nend, log(condPlotV), ':r')
+    plot(Nstart:1:Nend, log(condPlotP), ':c')
     
     title('log of Condition Number vs. Number of points sampled');
-    legend('K Matrix', 'L Matrix', 'LTilda Matrix', 'V Matrix', 'P Matrix');
+    legend('K Matrix', 'K~ Matrix', 'L Matrix', 'L~ Matrix', 'V Matrix', 'P Matrix', 'Location', 'NorthWest');
     ylabel('log of Condition Number');
     xlabel('Number of points sampled');
 
