@@ -1,13 +1,10 @@
 function [] = CompareCond()
 clear all; close all; clc;
 
-%fix K and take derivatives (taken from Palmer's code)
-epsilon = 200;
-K = @(x, point) exp(-epsilon.*(x-point).^2);
-%D1K = @(x,center) ( -2.*epsilon.*(x-center).*K(x,center) );
-D2K = @(x,center) ( 2.*epsilon.*(2.*epsilon.*((x-center).^2)-1).*K(x,center));
 
-hold on;
+
+subplot(1, 2, 1);
+
 
 Nstart = 1;
 Nend = 100;
@@ -20,14 +17,20 @@ condPlotV = zeros(1, Nend - Nstart);
 condPlotP = zeros(1, Nend - Nstart);
 
 for N = Nstart : 1 : Nend
+    
+    epsilon = (N/3)^2;
+    K = @(x, point) exp(-epsilon.*(x-point).^2);
+    %D1K = @(x,center) ( -2.*epsilon.*(x-center).*K(x,center) );
+    D2K = @(x,center) ( 2.*epsilon.*(2.*epsilon.*((x-center).^2)-1).*K(x,center));
+
     samplePoints = linspace(0, 1, N);
     temp = repmat(samplePoints, N, 1);
     %Kernel matrix
     KMatrix = K(temp', temp);
     
     KMatrixTilda = [K(temp', temp) ones(N, 1) samplePoints';
-                    K(0, samplePoints) 1 0;
-                    K(1, samplePoints) 1 1;];
+                    ones(1, N) 0 0;
+                    samplePoints 0 0;];
 
     %For this example, L = 2nd derivative
     LMatrix = D2K(temp', temp);
@@ -41,32 +44,46 @@ for N = Nstart : 1 : Nend
     condPlotLTilda(N-Nstart+1) = cond(LMatrixTilda);
     
     %%Newton Basis
-    [B, VMatrix] = calculate_beta_v(KMatrix, N, samplePoints, K);
+    [B, VMatrix] = calculate_beta_vector(KMatrix, N, samplePoints, K);
     condPlotV(N-Nstart+1) = cond(VMatrix);
     
-    %P = L * M' = L * (K^-1 * V)' = L*(K\V)'
-    PMatrix = LMatrix*(KMatrix\VMatrix)'; %may cause problems
     
+    [B, PMatrix] = calculate_beta_vector(LMatrix, N, samplePoints, D2K);
     condPlotP(N-Nstart+1) = cond(PMatrix);
 
 end
 
-    plot(Nstart:1:Nend, log(condPlotK), ':b')
-    plot(Nstart:1:Nend, log(condPlotKTilda), 'b')
-    plot(Nstart:1:Nend, log(condPlotL), ':g')
-    plot(Nstart:1:Nend, log(condPlotLTilda), 'g')
-    plot(Nstart:1:Nend, log(condPlotV), ':r')
-    plot(Nstart:1:Nend, log(condPlotP), ':c')
+    semilogy(Nstart:1:Nend, (condPlotK), ':b')
+    hold on;
+    semilogy(Nstart:1:Nend, (condPlotKTilda), 'b')
+    semilogy(Nstart:1:Nend, (condPlotL), ':g')
+    semilogy(Nstart:1:Nend, (condPlotLTilda), 'g')
+    semilogy(Nstart:1:Nend, (condPlotV), ':r')
+    semilogy(Nstart:1:Nend, (condPlotP), ':c')
     
     title('log of Condition Number vs. Number of points sampled');
     legend('K Matrix', 'K~ Matrix', 'L Matrix', 'L~ Matrix', 'V Matrix', 'P Matrix', 'Location', 'NorthWest');
     ylabel('log of Condition Number');
     xlabel('Number of points sampled');
+    
+    subplot(1, 2, 2);
+    hold on;
+    plot(Nstart:1:Nend, (condPlotK./condPlotL), ':g')
+    plot(Nstart:1:Nend, (condPlotKTilda./condPlotLTilda), 'g')
+    plot(Nstart:1:Nend, (condPlotV./condPlotP), ':r')
+    
+    title('Ratio of Condition Numbers');
+    legend('K/L', 'K~/L~', 'V/P', 'Location', 'NorthWest');
+    ylabel('Ratios');
+    xlabel('Number of points sampled');
 
+    KLRatio = condPlotK(100)/condPlotL(100)
+    KLTildaRatio = condPlotKTilda(100)/condPlotLTilda(100)
+    VPRatio = condPlotV(100)/condPlotP(100)
 end
 
 
-function [B, V] = calculate_beta_v(KM, N, xs, K)
+function [B, V] = calculate_beta_vector(KM, N, xs, K)
 % here we alternately calculate betas and vs since they depend on each
 % other (see paper for relationship). B should be lower triangular,
 % and V should be unit upper triangular s.t. KM = B*V
@@ -82,9 +99,11 @@ function [B, V] = calculate_beta_v(KM, N, xs, K)
     B(N,N) = calculate_single_beta(B,V,N,N,K,xs);
 end
 
+
 function [res] = calculate_single_beta(B, V, i, j, K, xs)
 res = K(xs(j), xs(i));
     for k=1:j-1
         res = res - B(i,k).*V(k,j);
     end
 end
+
